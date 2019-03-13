@@ -9,7 +9,7 @@ test: venv
 
 coverage: venv
 	./venv/bin/pytest -rfsxEX --cov=openscm tests --cov-report term-missing
-	coverage html
+	./venv/bin/coverage html
 
 test-notebooks: venv
 	./venv/bin/pytest -rfsxEX --nbval ./notebooks --sanitize ./notebooks/tests_sanitize.cfg
@@ -23,7 +23,7 @@ checks: venv clean-notebooks
 	./venv/bin/mypy openscm
 	./venv/bin/pytest -rfsxEX --cov=openscm tests --cov-report term-missing
 	./venv/bin/pytest -rfsxEX --nbval ./notebooks --sanitize ./notebooks/tests_sanitize.cfg
-	coverage report --fail-under=100
+	./venv/bin/coverage report --fail-under=100
 
 define clean_notebooks_code
 	(.cells[] | select(has("execution_count")) | .execution_count) = 0 \
