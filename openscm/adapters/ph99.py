@@ -21,13 +21,62 @@ class PH99(Adapter):
     Hasselmann, K.: The tolerable windows approach: Theoretical and methodological
     foundations, Climatic Change, 41, 303–331, 1999.
     """
+    def _initialize_model(self) -> None:
+        """
+        Initialize the model.
+        """
+        # loop over paras, set them all on self._parameters
+        for att in dir(self.model):
+            # all time parameters captured in parameterset output
+            if not att.startswith(("_", "time", "emissions_idx")):
+                value = getattr(self.model, att)
+                if callable(value):
+                    continue
 
-    def __init__(self):
-        self.model = None
-        self.name = "PH99"
-        self._ecs = None
-        self._hc_per_m2_approx = 30 ** 6 * unit_registry("J / kelvin / m^2")
-        super().__init__()
+                name = self._get_openscm_name(att)
+                magnitude = value.magnitude
+                if isinstance(magnitude, np.ndarray):
+                    continue
+                import pdb
+                pdb.set_trace()
+                self._parameters.get_writable_scalar_view(
+                    name, ("World"), str(value.units)
+                ).set(magnitude)
+
+    def _initialize_model_input(self) -> None:
+        # set emissions and other arrays based off that
+        pass
+
+    def _initialize_run_parameters(self) -> None:
+        # reset run parameters by looking at views again
+        pass
+
+    def _reset(self) -> None:
+        # reset to whatever is in the views of self
+        # probably requires a parameters and a timeseries list/method to get it...
+        pass
+
+    def _shutdown(self) -> None:
+        pass
+
+    def _get_openscm_name(self, name):
+        mappings = {
+            "concentrations": ("Atmospheric Concentrations", "CO2"),
+            "cumulative_emissions": ("Cumulative Emissions", "CO2"),
+            "emissions": ("Emissions", "CO2"),
+            "temperatures": ("Surface Temperature"),
+        }
+        try:
+            return mappings[name]
+        except KeyError:
+            return (name,)
+
+    # def __init__(self):
+    #     self.model = None
+    #     self.name = "PH99"
+    #     self._ecs = None
+    #     self._hc_per_m2_approx = 30 ** 6 * unit_registry("J / kelvin / m^2")
+    #     super().__init__()
 
     def initialize(self):
         super().initialize()
@@ -90,7 +139,7 @@ class PH99(Adapter):
                 "{} is not a {} parameter".format(para_name, self.name)
             )
 
-    def run(self) -> None:
+    def _run(self) -> None:
         self.model.initialise_timeseries()
         self.model.run()
 
@@ -152,8 +201,8 @@ class PH99(Adapter):
         except KeyError:
             return (name,)
 
-    def step(self) -> None:
+    def _step(self) -> None:
         self.model.step()
 
-    def shutdown(self) -> None:
-        super().shutdown()
+    def _shutdown(self) -> None:
+        pass
