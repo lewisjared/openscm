@@ -1,5 +1,9 @@
 from base import _AdapterTester
 
+from openscm.adapters.ph99 import PH99
+
+from conftest import assert_pint_equal
+
 class TestPH99Adapter(_AdapterTester):
     tadapter = PH99
 
