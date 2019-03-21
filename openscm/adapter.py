@@ -69,21 +69,9 @@ class Adapter(metaclass=ABCMeta):
         """
         self._shutdown()
 
-    def initialize_model_input(self) -> None:
+    def initialize_model_input(self, start_time: int, stop_time: int) -> None:
         """
         Initialize the model input.
-
-        Called before the adapter is used in any way and at most once before a call to
-        `run` or `step`.
-        """
-        if not self._initialized:
-            self._initialize_model()
-            self._initialized = True
-        self._initialize_model_input()
-
-    def initialize_run_parameters(self, start_time: int, stop_time: int) -> None:
-        """
-        Initialize parameters for the run.
 
         Called before the adapter is used in any way and at most once before a call to
         `run` or `step`.
@@ -102,6 +90,18 @@ class Adapter(metaclass=ABCMeta):
             self._initialized = True
         self._start_time = start_time
         self._stop_time = stop_time
+        self._initialize_model_input()
+
+    def initialize_run_parameters(self) -> None:
+        """
+        Initialize parameters for the run.
+
+        Called before the adapter is used in any way and at most once before a call to
+        `run` or `step`.
+        """
+        if not self._initialized:
+            self._initialize_model()
+            self._initialized = True
         self._initialize_run_parameters()
 
     def reset(self) -> None:

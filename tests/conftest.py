@@ -12,6 +12,11 @@ import pytest
 from openscm import timeseries_converter
 from openscm.core import ParameterSet
 from openscm.parameters import ParameterType
+from openscm.timeseries_converter import (
+    ExtrapolationType,
+    InterpolationType,
+    create_time_points,
+)
 
 TEST_DF = pd.DataFrame(
     [
@@ -62,11 +67,38 @@ def test_adapter(request):
 
 
 @pytest.fixture(scope="function")
-def test_run_parameters():
-    run_parameters = namedtuple("RunParameters", ["start_time", "stop_time"])
-    run_parameters.start_time = 0
-    run_parameters.stop_time = 100 * 365 * 24 * 60 * 60
-    yield run_parameters
+def test_drivers():
+    start_stop_time = namedtuple("RunParameters", ["start_time", "stop_time"])
+    start_stop_time.start_time = 0
+    start_stop_time.stop_time = 500 * 365 * 24 * 60 * 60
+
+    inputs = ParameterSet()
+
+    period_length = 31556926
+    timestep_count = (
+        start_stop_time.stop_time - start_stop_time.start_time
+    ) // period_length + 1
+    time_points_for_averages = create_time_points(
+        start_stop_time.start_time,
+        period_length,
+        timestep_count,
+        ParameterType.AVERAGE_TIMESERIES,
+    )
+
+    inputs.get_writable_timeseries_view(
+        ("Emissions", "CO2"),
+        ("World",),
+        "GtCO2/a",
+        time_points_for_averages,
+        ParameterType.AVERAGE_TIMESERIES,
+        InterpolationType.LINEAR,
+        ExtrapolationType.LINEAR,
+    ).set(
+        np.linspace(0, 40, timestep_count)
+        * np.sin(np.arange(timestep_count) * 2 * np.pi / 50)
+    )
+
+    yield {"inputs": inputs, "start_stop_time": start_stop_time}
 
 
 possible_source_values = [[1, 5, 3, 5, 7, 3, 2, 9]]

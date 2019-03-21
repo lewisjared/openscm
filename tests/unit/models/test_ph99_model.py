@@ -1,18 +1,13 @@
 import re
 from unittest.mock import MagicMock, PropertyMock, patch
 
-
 import numpy as np
 import pytest
-
-
-from openscm.models import PH99Model
-from openscm.errors import OutOfBoundsError, OverwriteError
-from openscm.units import unit_registry
-
-
 from conftest import assert_pint_equal
 
+from openscm.errors import OutOfBoundsError, OverwriteError
+from openscm.models import PH99Model
+from openscm.units import unit_registry
 
 yr = 1 * unit_registry.year
 ONE_YEAR = yr.to("s")

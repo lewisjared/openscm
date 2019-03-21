@@ -1,11 +1,13 @@
+"""
+Simple climate model first presented in Petschel-Held Climatic Change 1999
+"""
 from copy import deepcopy
-
 
 import numpy as np
 
-
-from ..units import unit_registry
 from ..errors import OutOfBoundsError, OverwriteError
+from ..units import unit_registry
+
 
 """
 TODO: put this somewhere
@@ -18,8 +20,9 @@ Decisions as I write:
 """
 
 
-class PH99Model(object):
-    """Simple climate model first presented in Petschel-Held Climatic Change 1999
+class PH99Model:  # pylint: disable=too-many-instance-attributes
+    """
+    Simple climate model first presented in Petschel-Held Climatic Change 1999
 
     This one box model projects global-mean |CO2| concentrations, global-mean radiative
     forcing and global-mean temperatures from emissions of |CO2| alone.
@@ -42,7 +45,8 @@ class PH99Model(object):
     """:obj:`pint.Quantity`: one year"""
 
     def __init__(self, time_start=0 * unit_registry("yr")):
-        """Initialise an instance of PH99Model
+        """
+        Initialise an instance of PH99Model
 
         Parameters
         ----------
@@ -54,37 +58,49 @@ class PH99Model(object):
 
     @property
     def timestep(self):
-        """:obj:`pint.Quantity`: Size of timestep"""
+        """
+        :obj:`pint.Quantity`: Size of timestep
+        """
         return self._timestep * self._timestep_units
 
     @timestep.setter
     def timestep(self, value):
         self._timestep = value.to(self._timestep_units).magnitude
 
+    _timestep_units = unit_registry("yr")
+    _timestep = _yr.to(_timestep_units).magnitude
+
     @property
     def time_start(self):
-        """:obj:`pint.Quantity`: Size of timestep"""
+        """
+        :obj:`pint.Quantity`: Size of timestep
+        """
         return self._time_start * self._timestep_units
 
     @time_start.setter
     def time_start(self, value):
         self._time_start = value.to(self._timestep_units).magnitude
 
+    _time_start = 0
+
     @property
     def time_current(self):
-        """:obj:`pint.Quantity`: Size of timestep"""
+        """
+        :obj:`pint.Quantity`: Size of timestep
+        """
         return self._time_current * self._timestep_units
 
     @time_current.setter
     def time_current(self, value):
         self._time_current = value.to(self._timestep_units).magnitude
 
-    _timestep_units = unit_registry("yr")
-    _timestep = _yr.to(_timestep_units).magnitude
+    _time_current = 0
 
     @property
     def emissions(self):
-        """`pint.Quantity` array: Emissions of |CO2|"""
+        """
+        `pint.Quantity` array: Emissions of |CO2|
+        """
         return self._emissions * self._emissions_units
 
     @emissions.setter
@@ -98,7 +114,9 @@ class PH99Model(object):
 
     @property
     def cumulative_emissions(self):
-        """`pint.Quantity` array: Cumulative emissions of |CO2|"""
+        """
+        `pint.Quantity` array: Cumulative emissions of |CO2|
+        """
         return self._cumulative_emissions * self._cumulative_emissions_units
 
     @cumulative_emissions.setter
@@ -112,7 +130,9 @@ class PH99Model(object):
 
     @property
     def concentrations(self):
-        """`pint.Quantity` array: Concentrations of |CO2|"""
+        """
+        `pint.Quantity` array: Concentrations of |CO2|
+        """
         return self._concentrations * self._concentrations_units
 
     @concentrations.setter
@@ -138,7 +158,9 @@ class PH99Model(object):
 
     @property
     def b(self):
-        """:obj:`pint.Quantity`: B parameter"""
+        """
+        :obj:`pint.Quantity`: B parameter
+        """
         return self._b * self._b_units
 
     @b.setter
@@ -150,7 +172,8 @@ class PH99Model(object):
 
     @property
     def beta(self):
-        """:obj:`pint.Quantity`: beta parameter
+        """
+        :obj:`pint.Quantity`: beta parameter
 
         This is the fraction of emissions which impact the carbon cycle.
         """
@@ -165,7 +188,8 @@ class PH99Model(object):
 
     @property
     def sigma(self):
-        """:obj:`pint.Quantity`: sigma parameter
+        """
+        :obj:`pint.Quantity`: sigma parameter
 
         The characteristic response time of the carbon cycle.
         """
@@ -180,7 +204,8 @@ class PH99Model(object):
 
     @property
     def c1(self):
-        """:obj:`pint.Quantity`: C1 parameter
+        """
+        :obj:`pint.Quantity`: C1 parameter
 
         The pre-industrial |CO2| concentration.
         """
@@ -195,7 +220,8 @@ class PH99Model(object):
 
     @property
     def mu(self):
-        """:obj:`pint.Quantity`: mu parameter
+        """
+        :obj:`pint.Quantity`: mu parameter
 
         This is like a scaling factor of the radiative forcing due to |CO2| but has
         different units as it is used directly in a temperature response equation rather
@@ -214,7 +240,8 @@ class PH99Model(object):
 
     @property
     def alpha(self):
-        """:obj:`pint.Quantity`: alpha parameter
+        """
+        :obj:`pint.Quantity`: alpha parameter
 
         The characteristic response time of global-mean temperatures.
         """
@@ -229,7 +256,8 @@ class PH99Model(object):
 
     @property
     def t1(self):
-        """:obj:`pint.Quantity`: T1 parameter
+        """
+        :obj:`pint.Quantity`: T1 parameter
 
         The pre-industrial global-mean temperature.
         """
@@ -247,20 +275,41 @@ class PH99Model(object):
     _t1 = _t1_tmp.magnitude
 
     @property
-    def emissions_idx(self):
+    def emissions_idx(self) -> int:
+        """
+        Get current index in emissions array, based on current time.
+
+        Returns
+        -------
+        int
+            Current index in emissions array, based on current time.
+
+        Raises
+        ------
+        ValueError
+            Emissions have not been set yet
+        AssertionError
+            The index cannot be determined
+        OutOfBoundsError
+            No emissions data available for the current timestep
+        """
         if self._emissions_nan:
             raise ValueError("emissions have not been set yet or contain nan's")
 
         res = (self._time_current - self._time_start) / self._timestep
-        err_msg = (
-            "somehow you have reached a point in time which isn't a multiple "
-            "of your timeperiod..."
-        )
-        # assert (res == 0) or (np.abs((res - round(res)) / res) < 10**-5), err_msg
-        assert (res == 0) or (-10 ** -5 < (res - round(res)) < 10 ** -5)
-        assert (
-            res >= 0
-        ), "somehow you have reached a point in time which is before your starting point..."
+        if not (-10 ** -5 < (res - round(res)) < 10 ** -5):
+            err_msg = (
+                "somehow you have reached a point in time which isn't a multiple "
+                "of your timeperiod..."
+            )
+            raise AssertionError(err_msg)
+
+        if res < 0:
+            raise AssertionError(
+                "somehow you have reached a point in time which is before your "
+                "starting point..."
+            )
+
         res = round(res)
         try:
             self._emissions[res]
@@ -275,9 +324,25 @@ class PH99Model(object):
             )
             raise OutOfBoundsError(error_msg)
 
-        return res
+        return int(res)
 
-    def initialise_timeseries(self, driver="emissions"):
+    def initialise_timeseries(self, driver: str = "emissions") -> None:
+        """
+        Initialise timeseries.
+
+        Uses the value of timeseries which have already been set to prepare the
+        model for a run.
+
+        Parameters
+        ----------
+        drivers
+            The driver for this run. # TODO: add list of options
+
+        Raises
+        ------
+        NotImplementedError
+            The requested ``driver`` is not available
+        """
         if driver != "emissions":
             raise NotImplementedError("other run modes not implemented yet")
 
@@ -299,17 +364,10 @@ class PH99Model(object):
         temperatures_init[0] = 14.6
         self.temperatures = unit_registry.Quantity(temperatures_init, "degC")
 
-    def run(self, restart=False) -> None:
-        """Run the model
-
-        Parameters
-        ----------
-        restart: bool
-            If True, run the model from the first timestep rather than from the value
-            of `self.time_current`. This will overwrite any values which have already
-            been calculated.
+    def run(self) -> None:
         """
-        # super nice that we don't have to write type in docstring when the type is in the function signature
+        Run the model
+        """
         try:
             self.emissions_idx
         except OutOfBoundsError:
@@ -322,7 +380,9 @@ class PH99Model(object):
                 break
 
     def step(self) -> None:
-        """Step the model forward to the next point in time"""
+        """
+        Step the model forward to the next point in time
+        """
         self._step_time()
         self._update_cumulative_emissions()
         self._update_concentrations()
@@ -332,7 +392,9 @@ class PH99Model(object):
         self._time_current += self._timestep
 
     def _update_cumulative_emissions(self) -> None:
-        """Update the cumulative emissions to the current timestep"""
+        """
+        Update the cumulative emissions to the current timestep
+        """
         self._check_update_overwrite("_cumulative_emissions")
         self._cumulative_emissions[self.emissions_idx] = (
             self._cumulative_emissions[self.emissions_idx - 1]
@@ -340,7 +402,9 @@ class PH99Model(object):
         )
 
     def _update_concentrations(self) -> None:
-        """Update the concentrations to the current timestep"""
+        """
+        Update the concentrations to the current timestep
+        """
         self._check_update_overwrite("_concentrations")
         dcdt = (
             self._b * self._cumulative_emissions[self.emissions_idx - 1]
@@ -352,7 +416,9 @@ class PH99Model(object):
         )
 
     def _update_temperatures(self) -> None:
-        """Update the temperatures to the current timestep"""
+        """
+        Update the temperatures to the current timestep
+        """
         self._check_update_overwrite("_temperatures")
         dtdt = self._mu * np.log(
             self._concentrations[self.emissions_idx - 1] / self._c1
@@ -361,8 +427,9 @@ class PH99Model(object):
             self._temperatures[self.emissions_idx - 1] + dtdt * self._timestep
         )
 
-    def _check_update_overwrite(self, attribute_to_check) -> None:
-        """Check if updating the given array will overwrite existing data
+    def _check_update_overwrite(self, attribute_to_check: str) -> None:
+        """
+        Check if updating the given array will overwrite existing data
 
         Parameters
         ----------

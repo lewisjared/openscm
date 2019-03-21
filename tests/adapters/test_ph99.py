@@ -1,59 +1,65 @@
+import datetime
+
+import numpy as np
+import pytest
 from base import _AdapterTester
 
 from openscm.adapters.ph99 import PH99
+from openscm.parameters import ParameterType
+from openscm.utils import convert_datetime_to_openscm_time
 
-from conftest import assert_pint_equal
 
 class TestPH99Adapter(_AdapterTester):
     tadapter = PH99
 
     def test_initialize(self, test_adapter):
-        assert test_adapter.model is None
+        with pytest.raises(AttributeError):
+            test_adapter.model
         super().test_initialize(test_adapter)
-        assert test_adapter.model is not None
+        assert test_adapter.model
 
-    def test_set_config(self, test_adapter, test_config_paraset):
-        super().test_set_config(test_adapter, test_config_paraset)
+    def test_initialize_run_parameters(self, test_adapter):
+        super().test_initialize_run_parameters(test_adapter)
 
         tc1 = 3.8
-        test_config_paraset.get_writable_scalar_view("c1", ("World",), "ppb").set(
+        test_adapter._parameters.get_writable_scalar_view("c1", ("World",), "ppb").set(
             tc1 * 1000
         )
+        test_adapter.initialize_run_parameters()
+        assert (
+            test_adapter._parameters.get_scalar_view(("c1",), ("World",), "ppm").get()
+            == tc1
+        )
 
-        test_adapter.initialize()
-        test_adapter.set_config(test_config_paraset)
+    def test_run(self, test_adapter, test_drivers):
+        super().test_run(test_adapter, test_drivers)
 
-        assert_pint_equal(test_adapter.model.c1, tc1 * unit_registry("ppm"))
-
-    def test_run(self, test_adapter, test_config_paraset, test_drivers_core):
-        super().test_run(test_adapter, test_config_paraset, test_drivers_core)
-
-        test_adapter.initialize()
-        test_adapter.set_config(test_config_paraset)
-        test_adapter.set_drivers(test_drivers_core)
-        res = test_adapter.run()
-
-        def get_comparison_time_for_year(yr):
-            return convert_datetime_to_openscm_time(datetime.datetime(yr, 1, 1))
-
-        assert_core(
-            10.1457206,
-            get_comparison_time_for_year(2017),
-            res,
+        emms_2017 = test_adapter._output.get_timeseries_view(
             ("Emissions", "CO2"),
             "World",
             "GtC / yr",
-            res.start_time,
-            ONE_YEAR_IN_S_INTEGER,
-        )
+            np.array(
+                [
+                    convert_datetime_to_openscm_time(datetime.datetime(2017, 1, 1)),
+                    convert_datetime_to_openscm_time(datetime.datetime(2018, 1, 1)),
+                ]
+            ),
+            ParameterType.AVERAGE_TIMESERIES,
+        ).get()
+        assert emms_2017[0] == -0.378101689838863  # could be wrong, need to check...
 
-        assert_core(
-            1.632585,
-            get_comparison_time_for_year(2100),
-            res,
+        temp_2017_2018 = test_adapter._output.get_timeseries_view(
             ("Surface Temperature"),
             "World",
             "K",
-            res.start_time,
-            ONE_YEAR_IN_S_INTEGER,
+            np.array(
+                [
+                    convert_datetime_to_openscm_time(datetime.datetime(2017, 1, 1)),
+                    convert_datetime_to_openscm_time(datetime.datetime(2018, 1, 1)),
+                ]
+            ),
+            ParameterType.POINT_TIMESERIES,
+        ).get()
+        np.testing.assert_allclose(
+            temp_2017_2018, np.array([-0.0008942013640017765, -0.00202055345682164])
         )
