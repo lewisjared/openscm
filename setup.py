@@ -6,11 +6,10 @@ A unifying interface for Simple Climate Models.
 """
 
 import versioneer
-from setuptools import setup
+from setuptools import find_packages, setup
 from setuptools.command.test import test as TestCommand
 
 NAME = "openscm"
-PACKAGES = ["openscm"]
 SHORT_DESCRIPTION = "A unifying interface for Simple Climate Models"
 KEYWORDS = ["simple climate model"]
 AUTHORS = [
@@ -78,6 +77,8 @@ for k, v in REQUIREMENTS_MODELS.items():
     REQUIREMENTS_EXTRAS["tests"] += v
     REQUIREMENTS_EXTRAS["dev"] += v
 
+PACKAGE_DATA = {"openscm": ["units/*.csv"]}
+
 # Get the long description from the README file
 with open("README.rst", "r", encoding="utf-8") as f:
     README_LINES = ["OpenSCM", "=======", ""]
@@ -119,7 +120,8 @@ setup(
     project_urls=PROJECT_URLS,
     license=LICENSE,
     classifiers=CLASSIFIERS,
-    packages=PACKAGES,
+    packages=find_packages(exclude=["tests"]),
+    package_data=PACKAGE_DATA,
     install_requires=REQUIREMENTS_INSTALL,
     extras_require=REQUIREMENTS_EXTRAS,
     cmdclass=CMDCLASS,
